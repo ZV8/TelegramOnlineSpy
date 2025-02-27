@@ -109,7 +109,9 @@ async def start(event):
     if id not in data:
         data[id] = {}
     user_data = data[id]
-    if('is_running' in user_data and user_data['is_running']):
+    
+    # Проверяем, существует ли ключ is_running
+    if 'is_running' in user_data and user_data['is_running']:
         await event.respond('Spy is already started')
         return
 
@@ -127,8 +129,11 @@ async def start(event):
     user_data['is_running'] = True
 
     while True:
+        # Получаем актуальные данные пользователя
         user_data = data[id]
-        if(not user_data['is_running'] or len(contacts) < 1):
+        
+        # Проверяем, существует ли ключ is_running
+        if 'is_running' not in user_data or not user_data['is_running'] or len(contacts) < 1:
             break;
         print(f'running {id}: {counter}')
         counter+=1
@@ -143,7 +148,12 @@ async def start(event):
                         contact.last_offline = datetime.now()
                         was_offline='unknown offline time'
                         if contact.last_online is not None:
-                            was_offline = get_interval(contact.last_offline - contact.last_online)
+                            # Преобразуем в timezone-naive объекты перед вычитанием
+                            last_offline = contact.last_offline.replace(tzinfo=None)
+                            last_online = contact.last_online
+                            if hasattr(last_online, 'tzinfo') and last_online.tzinfo is not None:
+                                last_online = last_online.replace(tzinfo=None)
+                            was_offline = get_interval(last_offline - last_online)
                         await event.respond(f'{was_offline}: {contact.name} went online.')
                 elif isinstance(account.status, UserStatusOffline):
                     if contact.online == True:
@@ -155,7 +165,14 @@ async def start(event):
 
                         was_online='unknown online time'
                         if contact.last_offline is not None:
-                            was_online = get_interval(contact.last_online - contact.last_offline)
+                            # Преобразуем в timezone-naive объекты перед вычитанием
+                            last_online = contact.last_online
+                            if hasattr(last_online, 'tzinfo') and last_online.tzinfo is not None:
+                                last_online = last_online.replace(tzinfo=None)
+                            last_offline = contact.last_offline
+                            if hasattr(last_offline, 'tzinfo') and last_offline.tzinfo is not None:
+                                last_offline = last_offline.replace(tzinfo=None)
+                            was_online = get_interval(last_online - last_offline)
 
                         await event.respond(f'{was_online} {contact.name} went offline.')
                     contact.last_offline = None
@@ -166,7 +183,14 @@ async def start(event):
 
                         was_online='unknown online time'
                         if contact.last_offline is not None:
-                            was_online = get_interval(contact.last_online - contact.last_offline)
+                            # Преобразуем в timezone-naive объекты перед вычитанием
+                            last_online = contact.last_online
+                            if hasattr(last_online, 'tzinfo') and last_online.tzinfo is not None:
+                                last_online = last_online.replace(tzinfo=None)
+                            last_offline = contact.last_offline
+                            if hasattr(last_offline, 'tzinfo') and last_offline.tzinfo is not None:
+                                last_offline = last_offline.replace(tzinfo=None)
+                            was_online = get_interval(last_online - last_offline)
 
                         await event.respond(f'{was_online}: {contact.name} went offline.')
                         contact.last_offline = None
@@ -279,9 +303,14 @@ def main():
 
 
 def utc2localtime(utc):
-    pivot = mktime(utc.timetuple())
-    offset = datetime.fromtimestamp(pivot) - datetime.utcfromtimestamp(pivot)
-    return utc + offset
+    if utc is None:
+        return None
+    # Преобразуем UTC в локальное время
+    from datetime import timezone
+    # Получаем локальное время с учетом часового пояса
+    local_time = utc.replace(tzinfo=timezone.utc).astimezone()
+    # Возвращаем naive datetime объект
+    return local_time.replace(tzinfo=None)
 
 def printToFile(str):
     file_name = 'spy_log.txt'
